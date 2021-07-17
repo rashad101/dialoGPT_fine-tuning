@@ -10,14 +10,14 @@ class Args():
         self.do_train = True
         self.do_eval = True
         self.evaluate_during_training = False
-        self.per_gpu_train_batch_size = 4
-        self.per_gpu_eval_batch_size = 4
+        self.per_gpu_train_batch_size = 2
+        self.per_gpu_eval_batch_size = 2
         self.gradient_accumulation_steps = 1
         self.learning_rate = 5e-5
         self.weight_decay = 0.0
         self.adam_epsilon = 1e-8
         self.max_grad_norm = 1.0
-        self.num_train_epochs = 3
+        self.num_train_epochs = 10
         self.max_steps = -1
         self.warmup_steps = 0
         self.logging_steps = 1000
