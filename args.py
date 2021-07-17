@@ -1,6 +1,6 @@
 class Args():
     def __init__(self):
-        self.output_dir = 'output-large'
+        self.output_dir = 'output-medium'
         self.model_type = 'gpt2'
         self.model_name_or_path = 'microsoft/DialoGPT-medium'
         self.config_name = 'microsoft/DialoGPT-medium'
@@ -10,8 +10,8 @@ class Args():
         self.do_train = True
         self.do_eval = True
         self.evaluate_during_training = False
-        self.per_gpu_train_batch_size = 2
-        self.per_gpu_eval_batch_size = 2
+        self.per_gpu_train_batch_size = 1
+        self.per_gpu_eval_batch_size = 1
         self.gradient_accumulation_steps = 1
         self.learning_rate = 5e-5
         self.weight_decay = 0.0
