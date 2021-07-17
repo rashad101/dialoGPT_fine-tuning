@@ -146,7 +146,7 @@ def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedToke
     tr_loss, loggin_loss = 0.0, 0.0
     model.zero_grad()
     train_iterator = trange(
-        epochs_trained = int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1,0]
+        epochs_trained , int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1,0]
     )
     set_seed(args)
 
