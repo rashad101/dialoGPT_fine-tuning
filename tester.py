@@ -2,8 +2,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
 
-tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-small")
-model = AutoModelForCausalLM.from_pretrained('output-small')
+tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-large")
+model = AutoModelForCausalLM.from_pretrained('output-large')
 
 
 for step in range(5):
