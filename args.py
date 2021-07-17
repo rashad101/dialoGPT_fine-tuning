@@ -2,9 +2,9 @@ class Args():
     def __init__(self):
         self.output_dir = 'output-large'
         self.model_type = 'gpt2'
-        self.model_name_or_path = 'microsoft/DialoGPT-large'
-        self.config_name = 'microsoft/DialoGPT-large'
-        self.tokenizer_name = 'microsoft/DialoGPT-large'
+        self.model_name_or_path = 'microsoft/DialoGPT-medium'
+        self.config_name = 'microsoft/DialoGPT-medium'
+        self.tokenizer_name = 'microsoft/DialoGPT-medium'
         self.cache_dir = 'cached'
         self.block_size = 512
         self.do_train = True
