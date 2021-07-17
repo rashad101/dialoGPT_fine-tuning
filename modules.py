@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampl
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
-
+import torch.distributed as dist
 from pathlib import Path
 from args import Args
 from dataset import ConversationDataset, _sorted_checkpoints, _rotate_checkpoints, set_seed, load_and_cache_examples
@@ -41,6 +41,15 @@ logger = logging.getLogger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_WITH_LM_HEAD_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+
+    # initialize the process group
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+
+def cleanup():
+    dist.destroy_process_group()
 
 def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedTokenizer) -> Tuple[int, float]:
     """ Train the model """
@@ -235,35 +244,40 @@ def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedToke
 
 
 def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, df_trn, df_val, prefix="") -> Dict:
+    # Loop to handle MNLI double evaluation (matched, mis-matched)
     eval_output_dir = args.output_dir
 
     eval_dataset = load_and_cache_examples(args, tokenizer, df_trn, df_val, evaluate=True)
     os.makedirs(eval_output_dir, exist_ok=True)
-    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1,args.n_gpu)
+    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
+    # Note that DistributedSampler samples randomly
 
-    def collate(example: List[torch.Tensor]):
-        if tokenizer.pad_token is None:
-            return pad_sequence(example, batch_first=True)
-        return pad_sequence(example, batch_first=True, padding_value=tokenizer.pad_token_id)
+    def collate(examples: List[torch.Tensor]):
+        if tokenizer._pad_token is None:
+            return pad_sequence(examples, batch_first=True)
+        return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
 
     eval_sampler = SequentialSampler(eval_dataset)
-    eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size, collate_fn=collate, drop_last=True)
-
+    eval_dataloader = DataLoader(
+        eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size, collate_fn=collate, drop_last = True
+    )
 
     # multi-gpu evaluate
     if args.n_gpu > 1:
         model = torch.nn.DataParallel(model)
 
     # Eval!
-    logger.info("**** Running evaluation {} ****".format(prefix))
-    logger.info(" Num example = %d", len(eval_dataset))
-    logger.info(" Batch size = %d", args.eval_batch_size)
+    logger.info("***** Running evaluation {} *****".format(prefix))
+    logger.info("  Num examples = %d", len(eval_dataset))
+    logger.info("  Batch size = %d", args.eval_batch_size)
     eval_loss = 0.0
     nb_eval_steps = 0
     model.eval()
 
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
         inputs, labels = (batch, batch)
+        inputs = inputs.to(args.device)
+        labels = labels.to(args.device)
 
         with torch.no_grad():
             outputs = model(inputs, labels=labels)
@@ -273,14 +287,15 @@ def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, df_tr
 
     eval_loss = eval_loss / nb_eval_steps
     perplexity = torch.exp(torch.tensor(eval_loss))
+
     result = {"perplexity": perplexity}
 
     output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
-    with open(output_eval_file, "w") as f:
-        logger.info("**** Eval results {} *****".format(prefix))
+    with open(output_eval_file, "w") as writer:
+        logger.info("***** Eval results {} *****".format(prefix))
         for key in sorted(result.keys()):
-            logger.info(" %s = %s", key, str(result[key]))
-            f.write("%s = %s\n "% (key, str(result[key])))
+            logger.info("  %s = %s", key, str(result[key]))
+            writer.write("%s = %s\n" % (key, str(result[key])))
 
     return result
 
